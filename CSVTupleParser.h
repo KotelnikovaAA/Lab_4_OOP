@@ -12,8 +12,8 @@
 #include <algorithm>
 
 #include "CSVParserException.h"
+#include "TemplateTupleReader.h"
 
-namespace CSVParser {
 
     template<typename ...Arguments>
     class CSVTupleParser {
@@ -50,6 +50,7 @@ namespace CSVParser {
             unsigned int itCurrentRow_;
             std::string itCurrentLine_;
             char itDelimiterSymbol_;
+            char itScreenedSymbol_;
             std::streampos itPosition_;
 
             class CSVParserCType : public std::ctype<char> {
@@ -79,7 +80,7 @@ namespace CSVParser {
 
                     std::istringstream stringStream(itCurrentLine_);
                     setStringStreamLocateParams(stringStream);
-                    stringStream >> *itTuple_;
+                    readTuples<Arguments...>(stringStream, *itTuple_, itDelimiterSymbol_, itScreenedSymbol_);
                     ++itCurrentRow_;
                 } catch (CSVParser::CSVParserException &exception) {
                     switch (exception.getErrorType()) {
@@ -109,15 +110,16 @@ namespace CSVParser {
             friend class CSVTupleParser<Arguments...>;
 
             iterator(std::ifstream &itInputStream, const bool itEndOfFile, const unsigned int currentRow,
-                     const char delimiterSymbol) :
+                     const char delimiterSymbol, const char screenedSymbol) :
                     itInputStream_(itInputStream),
                     itEndOfFile_(itEndOfFile),
                     itCurrentRow_(currentRow),
-                    itDelimiterSymbol_(delimiterSymbol) {
+                    itDelimiterSymbol_(delimiterSymbol),
+                    itScreenedSymbol_(screenedSymbol) {
 
                 itTuple_ = new std::tuple<Arguments...>;
 
-                if (itEndOfFile_ || itPosition_ == EOF) {
+                if (itEndOfFile_ || itPosition_ == EOF) {      // TODO: what for?!
                     itEndOfFile_ = true;
                     return;
                 }
@@ -130,7 +132,7 @@ namespace CSVParser {
             }
 
             iterator &operator++() {
-                if (itEndOfFile_ || itPosition_ == EOF) {
+                if (itEndOfFile_ || itPosition_ == EOF) {       // TODO: what for?!
                     itEndOfFile_ = true;
                     return *this;
                 }
@@ -143,7 +145,7 @@ namespace CSVParser {
                 if (other.itEndOfFile_ && this->itEndOfFile_) {
                     return true;
                 }
-                return (this->itCurrentLine_ == *other.itCurrentLine_);
+                return (this->itCurrentLine_ == other.itCurrentLine_);
             }
 
             bool operator!=(const iterator &other) const {
@@ -158,14 +160,13 @@ namespace CSVParser {
         iterator begin() {
             csvInputStream_.clear();
             csvInputStream_.seekg(0);
-            return iterator(csvInputStream_, false, csvSkipLinesNumber_ + 1, csvDelimiterSymbol_);
+            return iterator(csvInputStream_, false, csvSkipLinesNumber_ + 1, csvDelimiterSymbol_, csvScreenedSymbol_);
         }
 
         iterator end() {
-            return iterator(csvInputStream_, true, UINT_MAX, csvDelimiterSymbol_);
+            return iterator(csvInputStream_, true, UINT_MAX, csvDelimiterSymbol_, csvScreenedSymbol_);
         }
     };
 
-}
 
 #endif //LAB_4_CSVTUPLEPARSER_H
